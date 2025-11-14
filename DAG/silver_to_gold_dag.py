@@ -23,7 +23,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # 1️⃣ Wait for the last Bronze → Silver run to complete
+    #  Wait for the last Bronze → Silver run to complete
     wait_for_bronze = ExternalTaskSensor(
         task_id='wait_for_bronze',
         external_dag_id='bronze_to_silver',      # hourly DAG
@@ -32,7 +32,7 @@ with DAG(
         timeout=3600        # max wait 1 hour
     )
 
-    # 2️⃣ Run Silver → Gold Spark job
+    #  Run Silver → Gold Spark job
     silver_to_gold_task = SparkSubmitOperator(
         task_id='silver_to_gold_task',
         application='/opt/app/silver_to_gold.py',  # path to your Spark script
@@ -40,25 +40,25 @@ with DAG(
         verbose=True
     )
 
-    # 3️⃣ Run dbt models
+    #  Run dbt models
     run_dbt_models = BashOperator(
         task_id='run_dbt_models',
         bash_command='cd /opt/app/payments_dbt && dbt run'
     )
 
-    # 4️⃣ Generate dbt docs
+    #  Generate dbt docs
     generate_dbt_docs = BashOperator(
         task_id='generate_dbt_docs',
         bash_command='cd /opt/app/payments_dbt && dbt docs generate'
     )
 
-    # 5️⃣ Export Settlement Report CSV
+    #  Export Settlement Report CSV
     export_settlement_csv = BashOperator(
         task_id='export_settlement_csv',
         bash_command='cd /opt/app && python export_reports.py --report settlement'
     )
 
-    # 6️⃣ Export Fraud Alerts CSV
+    #  Export Fraud Alerts CSV
     export_fraud_csv = BashOperator(
         task_id='export_fraud_csv',
         bash_command='cd /opt/app && python export_reports.py --report fraud'
