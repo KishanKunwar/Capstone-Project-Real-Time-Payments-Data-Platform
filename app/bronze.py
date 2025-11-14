@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, when, lit, current_date
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType, IntegerType
 
-# 1️⃣ Spark session
+# Spark session
 spark = (SparkSession.builder
          .appName("Capstone Real-Time Payments")
          .getOrCreate())
@@ -11,7 +11,7 @@ kafka_bootstrap = "kafka:9092"
 source_topic = "payments.raw"
 deadletter_topic = "payments.deadletter"
 
-# 2️⃣ Define schema
+#  Define schema
 schema = StructType([
     StructField("transition_id", StringType(), True),
     StructField("ts_event", TimestampType(), True),
@@ -25,7 +25,7 @@ schema = StructType([
     StructField("location", StringType(), True)
 ])
 
-# 3️⃣ Kafka streaming read
+#  Kafka streaming read
 raw = (spark.readStream
        .format("kafka")
        .option("kafka.bootstrap.servers", kafka_bootstrap)
@@ -37,9 +37,6 @@ json_df = (raw.selectExpr("CAST(value AS STRING) AS json_str")
            .select(from_json(col("json_str"), schema).alias("data"))
            .select("data.*"))
 
-# 4️⃣ Fraud rules
-# Example: high amount (>900), blacklisted merchants, velocity check (simplified)
-blacklisted_merchants = ["m999", "m888"]  # sample list
 
 validated_df = json_df.withColumn(
     "is_valid",
@@ -51,11 +48,11 @@ validated_df = json_df.withColumn(
     .otherwise(lit(True))
 )
 
-# 5️⃣ Split valid / invalid
+#  Split valid / invalid
 valid_df = validated_df.filter(col("is_valid") == True).drop("is_valid")
 invalid_df = validated_df.filter(col("is_valid") == False).drop("is_valid")
 
-# 6️⃣ Write invalid events to Kafka deadletter
+#  Write invalid events to Kafka deadletter
 invalid_to_kafka = (invalid_df
     .selectExpr("to_json(struct(*)) AS value")
     .writeStream
@@ -65,7 +62,7 @@ invalid_to_kafka = (invalid_df
     .option("checkpointLocation", "/opt/app/checkpoints/deadletter_ckpt")
     .start())
 
-# 7️⃣ Write valid events to Bronze layer in Parquet, partitioned by date
+#  Write valid events to Bronze layer in Parquet, partitioned by date
 valid_to_parquet = (valid_df
     .withColumn("date", current_date())
     .writeStream
